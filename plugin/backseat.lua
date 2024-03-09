@@ -376,10 +376,11 @@ vim.api.nvim_create_user_command("Backseat", function(opts)
 
   local numRequests = math.ceil(totalLines / splitThreshold)
   local model = get_model_id()
+  local filetype = vim.bo.filetype
 
   local requestTable = {
     model = model,
-    messages = fewshot.messages,
+    messages = fewshot.get_fewshot_message(filetype).messages,
   }
 
   local requests = {}
