@@ -364,12 +364,17 @@ function backseat_callback(responseTable, callbackTable)
 end
 
 -- Send the current buffer to the AI for readability feedback
-vim.api.nvim_create_user_command("Backseat", function()
+--- @param opts {line1: number, line2: number}
+vim.api.nvim_create_user_command("Backseat", function(opts)
   -- Split the current buffer into groups of lines of size splitThreshold
   local splitThreshold = get_split_threshold()
   local bufnr = vim.api.nvim_get_current_buf()
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  local numRequests = math.ceil(#lines / splitThreshold)
+
+  local startLine = opts.line1
+  local endLine = opts.line2
+  local totalLines = endLine - startLine + 1
+
+  local numRequests = math.ceil(totalLines / splitThreshold)
   local model = get_model_id()
 
   local requestTable = {
@@ -379,12 +384,11 @@ vim.api.nvim_create_user_command("Backseat", function()
 
   local requests = {}
   for i = 1, numRequests do
-    local startingLineNumber = (i - 1) * splitThreshold + 1
-    local text = prepare_code_snippet(
-      bufnr,
-      startingLineNumber,
-      startingLineNumber + splitThreshold - 1
-    )
+    local startingLineNumber = (i - 1) * splitThreshold + startLine
+    local endingLineNumber =
+      math.min(startingLineNumber + splitThreshold - 1, endLine)
+    local text =
+      prepare_code_snippet(bufnr, startingLineNumber, endingLineNumber)
     -- print(text)
 
     if get_additional_instruction() ~= "" then
@@ -417,10 +421,10 @@ vim.api.nvim_create_user_command("Backseat", function()
     startingRequestCount = numRequests,
     requestIndex = 0,
     bufnr = bufnr,
-    lineCount = #lines,
+    lineCount = totalLines,
   })
   -- require("backseat.main"):run()
-end, {})
+end, { range = "%" })
 
 -- Use the underlying chat API to ask a question about the current buffer's code
 local function backseat_ask_callback(responseTable)
