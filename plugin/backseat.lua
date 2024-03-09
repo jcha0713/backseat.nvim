@@ -15,19 +15,33 @@ local function print(msg)
 end
 
 local function get_api_key()
-    -- Priority: 1. g:backseat_openai_api_key 2. $OPENAI_API_KEY 3. Prompt user
-    local api_key = vim.g.backseat_openai_api_key
-    if api_key == nil then
-        local key = os.getenv("OPENAI_API_KEY")
-        if key ~= nil then
-            return key
-        end
-        local message =
-        "No API key found. Please set openai_api_key in the setup table or set the $OPENAI_API_KEY environment variable."
-        vim.fn.confirm(message, "&OK", 1, "Warning")
-        return nil
+  -- Priority: 1. g:backseat_openai_api_key 2. $OPENAI_API_KEY 3. (One Password) 4. Prompt user
+  local api_key = vim.g.backseat_openai_api_key or os.getenv("OPENAI_API_KEY")
+
+  if api_key == nil then
+    local op_read_cmd = vim
+      .system({
+        "op",
+        "read",
+        "op://private/OPENAI-API-KEY/key",
+        "--no-newline",
+      }, { text = true })
+      :wait()
+
+    if op_read_cmd.code == 0 then
+      api_key = op_read_cmd.stdout
+      return api_key
+    else
+      vim.notify("Error: " .. op_read_cmd.stderr, vim.log.levels.ERROR)
     end
-    return api_key
+
+    local message =
+      "No API key found. Please set openai_api_key in the setup table or set the $OPENAI_API_KEY environment variable."
+    vim.fn.confirm(message, "&OK", 1, "Warning")
+    return nil
+  end
+
+  return api_key
 end
 
 local function get_model_id()
